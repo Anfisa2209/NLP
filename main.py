@@ -33,12 +33,15 @@ def word_in_sentence(word, sentence) -> bool:
     return normal_word.lower() in normal_sentence.lower().split()
 
 
-def word_in_text_amount(word: str, text: str) -> int:
-    """Возвращает количество вхождений нормализованной формы слова в нормализованный текст."""
-    normal_word = normalize_word(word)
-    # Нормализуем каждое слово текста
-    normal_words = [normalize_word(w) for w in text.split()]
-    return normal_words.count(normal_word)
+def phrase_amount_in_text(text: str, *args):
+    """Сколько раз словосочетание (word1, word2, word3...) встречается в text;
+    word1, word2, word3..., text могут быть ненормализованный
+    """
+    words = list(args)
+    normal_words = [normalize_word(word) for word in words]
+    norm_text = normalize_text(text)
+    phrase = " ".join(normal_words)
+    return norm_text.count(phrase)
 
 
 def find_TF(word: str, text: str) -> float:
@@ -46,7 +49,7 @@ def find_TF(word: str, text: str) -> float:
     TF = количество вхождений слова / общее количество слов в тексте.
     Все слова приводятся к нормальной форме.
     """
-    word_count = word_in_text_amount(word, text)
+    word_count = phrase_amount_in_text(text, word)
     total_words = len(text.split())
     if total_words == 0:
         return 0.0
@@ -109,8 +112,37 @@ def compute_tf_idf_for_sentences(sentences):
     return result
 
 
+def words_frequency(text: str, *args) -> float:
+    """ word1, word2, word3..., text могут быть ненормализованный"""
+    nw = phrase_amount_in_text(text, *list(args))  # кол-во слова/словосочетаний в тексте
+    n = len(text.split())  # всего слов в тексте
+    return round(nw / n, 2)
+
+
+def find_pmi(text: str, *words) -> float:
+    """
+    Вычисляет PMI для словосочетания из *words в заданном тексте.
+    Все слова приводятся к нормальной форме.
+    """
+    # Частота совместной встречи (числитель)
+    p_xy = words_frequency(text, *words)
+
+    # Частоты отдельных слов (знаменатель)
+    denominator = 1.0
+    for word in words:
+        p_x = words_frequency(text, word)
+        denominator *= p_x
+
+    if denominator == 0:
+        return 0.0
+
+    pmi = math.log10(p_xy / denominator)
+    return round(pmi, 2)
+
+
 if __name__ == '__main__':
-    sentences = ["Дом — милый дом.",
-                 "Здорово оказаться дома.",
-                 "Я люблю путешествовать."]
-    print(find_TF_IDF('Дом', sentences[1], sentences))
+    sentences = ["Мама приготовила нам вкусный борщ.",
+                 "Я зашёл в ресторан напротив дома, где подают, пожалуй, самый вкусный борщ.",
+                 "В ресторане обед был довольно стандартный: борщ, пюре с котлетой и компот."]
+    normalized_text = normalize_text(' '.join(sentences))
+    print(find_pmi(normalized_text, "вкусный", "борщ"))
