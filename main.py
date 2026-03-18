@@ -33,15 +33,26 @@ def word_in_sentence(word, sentence) -> bool:
     return normal_word.lower() in normal_sentence.lower().split()
 
 
-def phrase_amount_in_text(text: str, *args):
-    """Сколько раз словосочетание (word1, word2, word3...) встречается в text;
-    word1, word2, word3..., text могут быть ненормализованный
+def phrase_amount_in_text(text: str, *words) -> int:
     """
-    words = list(args)
-    normal_words = [normalize_word(word) for word in words]
-    norm_text = normalize_text(text)
-    phrase = " ".join(normal_words)
-    return norm_text.count(phrase)
+    Возвращает количество вхождений словосочетания (последовательности слов)
+    в текст. Слова и текст предварительно нормализуются.
+    """
+    # Нормализуем искомые слова
+    target = [normalize_word(w) for w in words]
+    if not target:
+        return 0
+
+    # Нормализуем текст и разбиваем на список слов
+    text_words = normalize_text(text).split()
+
+    count = 0
+    len_target = len(target)
+    # Ищем все вхождения подсписка target в text_words
+    for i in range(len(text_words) - len_target + 1):
+        if text_words[i:i + len_target] == target:
+            count += 1
+    return count
 
 
 def find_TF(word: str, text: str) -> float:
@@ -112,9 +123,9 @@ def compute_tf_idf_for_sentences(sentences):
     return result
 
 
-def words_frequency(text: str, *args) -> float:
+def words_frequency(text: str, *words) -> float:
     """ word1, word2, word3..., text могут быть ненормализованный"""
-    nw = phrase_amount_in_text(text, *list(args))  # кол-во слова/словосочетаний в тексте
+    nw = phrase_amount_in_text(text, *words)  # кол-во слова/словосочетаний в тексте
     n = len(text.split())  # всего слов в тексте
     return round(nw / n, 2)
 
@@ -140,9 +151,52 @@ def find_pmi(text: str, *words) -> float:
     return round(pmi, 2)
 
 
+def get_sentences_from_file(filename):
+    with open(filename, encoding='utf8') as file:
+        sentences = file.readlines()
+    return sentences
+
+
+def find_words_probability(text: str, *words):
+    """Вероятность появления слов words в корпусе text"""
+    n = len(text.split())
+    nw = phrase_amount_in_text(normalize_text(text), *words)
+    probability = nw / n
+    return probability
+
+
+def find_words_sequence_probability(text: str, m_word: str, *words):
+    """Найдет вероятность того, что слово m_word следует за словами words"""
+    whole_phrase = ' '.join(normalize_word(word) for word in words) + ' ' + m_word
+    # whole_phrase - фраза, вероятность появления которой мы хотим найти
+    n_phrase = phrase_amount_in_text(text, *whole_phrase.split())  # число раз, когда в корпусе встречается whole_phrase
+    n_without_m = phrase_amount_in_text(text, *words)
+    if n_without_m == 0:
+        print(f"Искал фразу: {n_phrase}, но не нашел")
+        return 0
+    p = n_phrase / n_without_m
+    return p
+
+
+def find_random_phrase_probability(text: str, *words):
+    p = 1
+    for index in range(len(words)):
+        m_word = words[index]
+        p_words = words[:index]
+        if len(p_words) == 0:
+            pw = find_words_probability(text, m_word)
+        else:
+            pw = find_words_sequence_probability(text, m_word, *p_words)
+        p *= pw
+    return p
+
+
+def find_perplexity(text, *words):
+    p = find_random_phrase_probability(text, *words)
+    m = len(list(words))
+    perplexity = (1 / p) ** 1 / m
+    return perplexity
+
+
 if __name__ == '__main__':
-    sentences = ["Мама приготовила нам вкусный борщ.",
-                 "Я зашёл в ресторан напротив дома, где подают, пожалуй, самый вкусный борщ.",
-                 "В ресторане обед был довольно стандартный: борщ, пюре с котлетой и компот."]
-    normalized_text = normalize_text(' '.join(sentences))
-    print(find_pmi(normalized_text, "вкусный", "борщ"))
+    words = "ноль один два три четыре пять шесть семь восемь девять".split()
