@@ -1,5 +1,6 @@
 import math
 import re
+import numpy as np
 
 import pymorphy3
 
@@ -198,5 +199,63 @@ def find_perplexity(text, *words):
     return perplexity
 
 
+def find_scalar_product(x: list, w_list: list, add_one=True):
+    """считается, что [1] + x по длине равно дине ws"""
+    x = [1] + x if add_one else x
+    list_len = len(x)
+    summ = 0
+    for i in range(list_len):
+        summ += x[i] * w_list[i]
+    return summ
+
+
+def softmax(x):
+    """Рассчитывает softmax для вектора или матрицы (по строкам)"""
+    # Вычитание np.max(x) повышает численную стабильность,
+    # предотвращая переполнение (overflow) от экспоненты
+    e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    return e_x / np.sum(e_x, axis=-1, keepdims=True)
+
+
+def find_xW(W: list, x: tuple):
+    """Рассчитывает скалярное произведение матрицы W на вектор Х"""
+    if len(W) != len(x):
+        return "Количество строк матрицы не равно длине вектора"
+    res = []
+    for j in range(len(W[0])):
+        summ = 0
+        for i in range(len(W)):
+            summ += W[i][j] * x[i]
+        res.append(summ)
+
+    return res
+
+
+def sum_xW_b(xW, b):
+    if len(xW) != len(b):
+        return "Длины векторов не равны"
+    return [xW[i] + b[i] for i in range(len(xW))]
+
+
+def change_to_ln(y):
+    return [math.log2(i) for i in y]
+
+
+def find_loss(real_y, pred_y):
+    if len(real_y) != len(pred_y):
+        return "Длины векторов не равны"
+
+    pred_y = change_to_ln(pred_y)
+    return -find_scalar_product(real_y, pred_y, False)
+
+
 if __name__ == '__main__':
-    words = "ноль один два три четыре пять шесть семь восемь девять".split()
+    W = [[1, -2, 3],
+         [-1, 0, 2]]
+    x = (3, -4)
+    b = (1, 4, -2)
+    xW = find_xW(W, x)
+    print(sum_xW_b(xW, b))
+    pred_y = [0.03, 0.32, 0.18, 0.4, 0.07]
+    y = [0, 0, 1, 0, 0]
+    print(find_loss(y, pred_y))
